@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { User, Tag, Download } from "lucide-react";
 
 const BRAND = { blue: "var(--hs-blue)", yellow: "var(--hs-yellow)" };
-const API = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:1337";
+const API = process.env.NEXT_PUBLIC_BACKEND_URL ;
 
 /* ─────────── Utils (tolerante v4/v5) ─────────── */
 type AnyObj = Record<string, any>;
