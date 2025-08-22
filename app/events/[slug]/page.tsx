@@ -1,6 +1,7 @@
 // app/events/[slug]/page.tsx
 import Image from "next/image";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react"; // ⬅️ solo tipos
 
 export const dynamic = "force-dynamic";
 
@@ -193,7 +194,7 @@ export default async function EventDetailPage({
   const gallery = pickGallery(row, cover?.url ?? null);
 
   // Render seguro de `content`
-  let contentNode: JSX.Element | null = null;
+  let contentNode: ReactNode = null; // ⬅️ cambio clave
   if (typeof contentRaw === "string") {
     contentNode = (
       <div
