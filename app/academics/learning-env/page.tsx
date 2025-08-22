@@ -1,7 +1,7 @@
 // app/our-learning-environment/page.tsx
 "use client";
 
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 
 /* ───────────────────────── Reusable Carousel ─────────────────────────
    - Usa scroll horizontal con snap y botones Prev/Next.
@@ -9,7 +9,9 @@ import { useRef } from "react";
    - Si un array está vacío, se muestran placeholders suaves.
 ------------------------------------------------------------------------ */
 
-function Carousel({ images = [] as string[] }) {
+type CarouselProps = { images?: string[] };
+
+function Carousel({ images = [] }: CarouselProps) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
 
   const scrollBy = (delta: number) => {
@@ -74,10 +76,10 @@ type Block = {
   id: string;
   kicker?: string;
   title: string;
-  body: string | JSX.Element;
+  body: ReactNode;      // ✅ ReactNode abarca string y nodos
   bullets?: string[];
-  images?: string[]; // ← agrega aquí tus fotos
-  flipped?: boolean; // invierte orden (imagen/texto) en desktop
+  images?: string[];    // imágenes
+  flipped?: boolean;    // invierte orden (imagen/texto) en desktop
 };
 
 const blocks: Block[] = [
@@ -95,12 +97,7 @@ const blocks: Block[] = [
       </>
     ),
     bullets: ["Math Fair", "Science Fair", "STEM + Competition", "Robotics"],
-    images: [
-      // Reemplaza con tus rutas
-      // "/images/stem-1.jpg", "/images/stem-2.jpg", ...
-
-                  "/12.jpg","/13.jpg","/14.jpg"
-    ],
+    images: ["/12.jpg", "/13.jpg", "/14.jpg"],
   },
   {
     id: "space-school",
@@ -108,7 +105,8 @@ const blocks: Block[] = [
     title: "A flagship program by FISE",
     body: (
       <>
-        Hughes Space School inspires students to explore <strong>space science, astrophysics, and STEM</strong> from an early age.
+        Hughes Space School inspires students to explore{" "}
+        <strong>space science, astrophysics, and STEM</strong> from an early age.
         Through hands‑on projects and academic training, students are guided toward earning{" "}
         <strong>scholarships</strong> to attend advanced programs at Space Center in Houston, Texas.
       </>
@@ -120,10 +118,7 @@ const blocks: Block[] = [
       "Space Center Scholarship Students",
       "Contacts",
     ],
-    images: [
-      // "/images/space-1.jpg", "/images/space-2.jpg", ...
-      "/15.png","/16.jpg","/17.jpg"
-    ],
+    images: ["/15.png", "/16.jpg", "/17.jpg"],
     flipped: true,
   },
   {
@@ -137,10 +132,7 @@ const blocks: Block[] = [
       </>
     ),
     bullets: ["HS Mun", "Mini Mun"],
-    images: [
-      // "/images/mun-1.jpg", "/images/mun-2.jpg", ...
-            "/18.jpg","/19.jpg","/20.jpg","/21.jpg"
-    ],
+    images: ["/18.jpg", "/19.jpg", "/20.jpg", "/21.jpg"],
   },
   {
     id: "dual-language",
@@ -154,10 +146,7 @@ const blocks: Block[] = [
       </>
     ),
     bullets: ["Spelling Bee", "Storytelling Competition"],
-    images: [
-      // "/images/dli-1.jpg", "/images/dli-2.jpg", ...
-                  "/22.jpg","/23.jpg","/24.jpg"
-    ],
+    images: ["/22.jpg", "/23.jpg", "/24.jpg"],
     flipped: true,
   },
   {
@@ -171,10 +160,7 @@ const blocks: Block[] = [
         (e.g., Math Club, Robotics, Origami).
       </>
     ),
-    images: [
-      // "/images/clubs-1.jpg", "/images/clubs-2.jpg", ...
-                        "/25.jpg","/26.jpg","/27.jpg"
-    ],
+    images: ["/25.jpg", "/26.jpg", "/27.jpg"],
   },
   {
     id: "counseling",
@@ -186,11 +172,7 @@ const blocks: Block[] = [
         preparation and application coaching, to help them take confident next steps after graduation.
       </>
     ),
-    images: [
-      // (opcional) "/images/counseling-1.jpg"
-
-                              "/29.jpg","/30.jpg"
-    ],
+    images: ["/29.jpg", "/30.jpg"],
     flipped: true,
   },
 ];
@@ -198,36 +180,33 @@ const blocks: Block[] = [
 export default function OurLearningEnvironmentPage() {
   return (
     <main className="min-h-screen">
-{/* HERO */}
-<section className="bg-white">
-  <div className="mx-auto max-w-4xl px-6 py-12 md:py-16 text-center">
-    <div className="mb-6 flex items-center justify-center gap-3">
-      <span
-        className="inline-block h-6 w-6 rounded-full"
-        style={{ background: "var(--hs-yellow)" }}
-        aria-hidden
-      />
-      <span
-        className="inline-block h-6 w-6 rounded-br-[14px]"
-        style={{ background: "var(--hs-blue)" }}
-        aria-hidden
-      />
-    </div>
+      {/* HERO */}
+      <section className="bg-white">
+        <div className="mx-auto max-w-4xl px-6 py-12 md:py-16 text-center">
+          <div className="mb-6 flex items-center justify-center gap-3">
+            <span
+              className="inline-block h-6 w-6 rounded-full"
+              style={{ background: "var(--hs-yellow)" }}
+              aria-hidden
+            />
+            <span
+              className="inline-block h-6 w-6 rounded-br-[14px]"
+              style={{ background: "var(--hs-blue)" }}
+              aria-hidden
+            />
+          </div>
 
-    <h1 className="text-3xl md:text-6xl font-extrabold tracking-tight text-hughes-blue">
-      Our Learning Environment
-    </h1>
+          <h1 className="text-3xl md:text-6xl font-extrabold tracking-tight text-hughes-blue">
+            Our Learning Environment
+          </h1>
 
-    <p className="mt-5 max-w-2xl mx-auto text-lg md:text-xl text-hughes-blue/80">
-      Beyond the classroom, our learning culture blends STEM, language immersion,
-      international affairs, space exploration, and student leadership — all supported by
-      meaningful, real-world experiences.
-    </p>
-
-
-  </div>
-</section>
-
+          <p className="mt-5 max-w-2xl mx-auto text-lg md:text-xl text-hughes-blue/80">
+            Beyond the classroom, our learning culture blends STEM, language immersion,
+            international affairs, space exploration, and student leadership — all supported by
+            meaningful, real-world experiences.
+          </p>
+        </div>
+      </section>
 
       {/* BLOQUES */}
       <section className="bg-white">
@@ -254,7 +233,7 @@ export default function OurLearningEnvironmentPage() {
                 <h2 className="text-2xl md:text-3xl font-bold text-hughes-blue">{b.title}</h2>
 
                 <div className="prose prose-slate mt-4 max-w-none text-hughes-blue">
-                  <p>{b.body}</p>
+                  {b.body}
                 </div>
 
                 {b.bullets && b.bullets.length > 0 && (

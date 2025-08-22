@@ -1,12 +1,8 @@
 // app/why-choose-hughes-schools/page.tsx
 "use client";
 
-import {
-  GraduationCap,
-  Rocket,
-  ShieldCheck,
-  Sparkles,
-} from "lucide-react";
+import { type ReactNode, type ReactElement } from "react";
+import { GraduationCap, Rocket, ShieldCheck, Sparkles } from "lucide-react";
 
 /**
  * Diseño inspirado en https://enrollbasis.com/enrollment-guide/
@@ -19,8 +15,8 @@ import {
 type Pillar = {
   id: string;
   title: string;
-  description: string | JSX.Element;
-  icon: JSX.Element;
+  description: ReactNode;   // ✅ en vez de string | JSX.Element
+  icon: ReactElement;       // ✅ en vez de JSX.Element
 };
 
 const pillars: Pillar[] = [
@@ -110,12 +106,8 @@ export default function WhyChooseHughesPage() {
               </article>
             ))}
           </div>
-
-
         </div>
       </section>
-
-      
     </main>
   );
 }

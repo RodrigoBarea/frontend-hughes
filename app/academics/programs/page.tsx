@@ -1,12 +1,14 @@
 // app/academic-programs/page.tsx
 "use client";
 
+import { type ReactNode } from "react";
+
 type Tier = {
   id: string;
   title: string;
   subtitle?: string;
-  body: string | JSX.Element;
-  image: string;   // una sola imagen por sección
+  body: ReactNode;   // ✅ ReactNode abarca string y nodos
+  image: string;     // una sola imagen por sección
   flipped?: boolean;
 };
 
@@ -27,7 +29,7 @@ const tiers: Tier[] = [
         encouraging autonomy, curiosity, and a lifelong love of learning.
       </>
     ),
-    image: "/images/program-early.jpg", // ← reemplaza
+    image: "/images/program-early.jpg",
   },
   {
     id: "elementary",
@@ -42,7 +44,7 @@ const tiers: Tier[] = [
         developing confidence and a genuine love for learning.
       </>
     ),
-    image: "/images/program-elementary.jpg", // ← reemplaza
+    image: "/images/program-elementary.jpg",
     flipped: true,
   },
   {
@@ -58,7 +60,7 @@ const tiers: Tier[] = [
         activities. Technology plays a key role, featuring robotics labs and lessons on AI ethics.
       </>
     ),
-    image: "/images/program-middle.jpg", // ← reemplaza
+    image: "/images/program-middle.jpg",
   },
   {
     id: "high",
@@ -74,7 +76,7 @@ const tiers: Tier[] = [
         individuals.
       </>
     ),
-    image: "/images/program-high.jpg", // ← reemplaza
+    image: "/images/program-high.jpg",
     flipped: true,
   },
 ];
@@ -196,7 +198,7 @@ export default function AcademicProgramsPage() {
                 )}
 
                 <div className="prose prose-slate mt-4 max-w-none text-hughes-blue">
-                  <p>{tier.body}</p>
+                  {typeof tier.body === "string" ? <p>{tier.body}</p> : tier.body}
                 </div>
               </div>
             </article>

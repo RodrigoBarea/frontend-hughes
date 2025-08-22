@@ -1,14 +1,15 @@
 // app/art-programs/page.tsx
 "use client";
-// añade este import arriba del archivo
+
+import { type ReactNode } from "react";   // ✅ importar ReactNode
 import { Music, Music2 } from "lucide-react";
 
 type Tier = {
   id: string;
   title: string;
   subtitle?: string;
-  body: string | JSX.Element;
-  image: string;      // one image per section (replace with your assets)
+  body: ReactNode;      // ✅ en vez de string | JSX.Element
+  image: string;        // one image per section (replace with your assets)
   flipped?: boolean;
 };
 
@@ -125,43 +126,39 @@ const tiers: Tier[] = [
 export default function ArtProgramsPage() {
   return (
     <main className="min-h-screen">
-{/* HERO — final (notes only) */}
-<section className="bg-white">
-  <div className="mx-auto max-w-7xl px-6 py-12 md:py-16 grid grid-cols-1 md:grid-cols-12 gap-10 items-center">
-    {/* Text */}
-    <div className="md:col-span-6">
-      {/* Musical notes (no clipping) */}
-      <div className="mb-6 flex items-end gap-2 leading-none">
-        <Music className="h-8 w-8 text-[var(--hs-yellow)]" strokeWidth={2.6} />
-        <Music2 className="h-9 w-9 text-hughes-blue -mb-0.5" strokeWidth={2.6} />
-        <Music className="h-6 w-6 text-[var(--hs-yellow)] translate-y-0.5" strokeWidth={2.6} />
-      </div>
+      {/* HERO */}
+      <section className="bg-white">
+        <div className="mx-auto max-w-7xl px-6 py-12 md:py-16 grid grid-cols-1 md:grid-cols-12 gap-10 items-center">
+          {/* Text */}
+          <div className="md:col-span-6">
+            <div className="mb-6 flex items-end gap-2 leading-none">
+              <Music className="h-8 w-8 text-[var(--hs-yellow)]" strokeWidth={2.6} />
+              <Music2 className="h-9 w-9 text-hughes-blue -mb-0.5" strokeWidth={2.6} />
+              <Music className="h-6 w-6 text-[var(--hs-yellow)] translate-y-0.5" strokeWidth={2.6} />
+            </div>
 
-      <h1 className="text-3xl md:text-6xl font-extrabold tracking-tight text-hughes-blue">
-        Art Programs — Music
-      </h1>
+            <h1 className="text-3xl md:text-6xl font-extrabold tracking-tight text-hughes-blue">
+              Art Programs — Music
+            </h1>
 
-      <p className="mt-5 max-w-2xl text-lg md:text-xl text-hughes-blue/80">
-        A complete journey from early musical exploration to specialization, with choir
-        training, individual lessons, and a strong program in Bolivian Folk Music that
-        celebrates identity and tradition.
-      </p>
-    </div>
+            <p className="mt-5 max-w-2xl text-lg md:text-xl text-hughes-blue/80">
+              A complete journey from early musical exploration to specialization, with choir
+              training, individual lessons, and a strong program in Bolivian Folk Music that
+              celebrates identity and tradition.
+            </p>
+          </div>
 
-    {/* Image (clean, no corner frames) */}
-    <div className="md:col-span-6">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={heroImage}
-        alt="Hughes Schools Performing Arts"
-        className="w-full rounded-[24px] object-cover"
-      />
-    </div>
-  </div>
-</section>
-
-
-
+          {/* Image */}
+          <div className="md:col-span-6">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={heroImage}
+              alt="Hughes Schools Performing Arts"
+              className="w-full rounded-[24px] object-cover"
+            />
+          </div>
+        </div>
+      </section>
 
       {/* Intro */}
       <section className="bg-white">

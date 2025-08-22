@@ -148,7 +148,8 @@ async function fetchEventsByRange(
     const tipo =
       getAttr<string | null>(row, "tipo") ?? (row as EventV5).tipo ?? null;
 
-    return { id: (row as any).id, title, start, end, location, tipo };
+    return { id: row.id, title, start, end, location, tipo };
+
   });
 
   return items;

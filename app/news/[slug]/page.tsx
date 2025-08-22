@@ -3,6 +3,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import NewsGallery from "@/components/NewsGallerySection";
 
+/* ─────────── Tipos locales para Next 15 ─────────── */
+type RouteParams = Promise<{ slug: string }>;
+type RouteSearch = Promise<Record<string, string | string[] | undefined>>;
+type PageInput = {
+  params: RouteParams;
+  searchParams?: RouteSearch;
+};
+
 /* Opcional: ISR (revalidate cada 1 min) */
 export const revalidate = 60;
 
@@ -42,13 +50,7 @@ type RowV4 = {
 };
 
 type Article = RowV4 | RowV5;
-type KnownKey =
-  | "title"
-  | "slug"
-  | "content"
-  | "date"
-  | "featured_image"
-  | "gallery";
+type KnownKey = "title" | "slug" | "content" | "date" | "featured_image" | "gallery";
 
 /** Respuesta típica de Strapi (lista) */
 type StrapiList<T> = { data?: T[] };
@@ -136,7 +138,7 @@ function parseStrapiList<T>(json: unknown): T[] {
   if (json && typeof json === "object" && "data" in json) {
     const data = (json as StrapiList<T>).data;
     return Array.isArray(data) ? data : [];
-    }
+  }
   return [];
 }
 
@@ -176,9 +178,10 @@ async function fetchArticleBySlug(slug: string): Promise<Article | null> {
   return null;
 }
 
-/* ───────────── SEO dinámico ───────────── */
-export async function generateMetadata({ params }: { params: { slug: string } }) {
-  const article = await fetchArticleBySlug(params.slug);
+/* ───────────── SEO dinámico (Next 15) ───────────── */
+export async function generateMetadata({ params }: Pick<PageInput, "params">) {
+  const { slug } = await params;
+  const article = await fetchArticleBySlug(slug);
   const title = (getAttr<string>(article ?? ({} as Article), "title") ?? "News") as string;
   const content = (getAttr<string>(article ?? ({} as Article), "content") ?? "") as string;
   const desc = content.replace(/<[^>]+>/g, "").slice(0, 160);
@@ -195,9 +198,10 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   };
 }
 
-/* ───────────── Página ───────────── */
-export default async function NewsDetailPage({ params }: { params: { slug: string } }) {
-  const article = await fetchArticleBySlug(params.slug);
+/* ───────────── Página (Next 15) ───────────── */
+export default async function NewsDetailPage({ params }: PageInput) {
+  const { slug } = await params;
+  const article = await fetchArticleBySlug(slug);
   if (!article) return notFound();
 
   const title = (getAttr<string>(article, "title") ?? "Untitled") as string;
@@ -226,7 +230,7 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
           </div>
         )}
 
-        {/* Portada más pequeña y centrada */}
+        {/* Portada */}
         {cover?.url && (
           <div className="mt-6 flex justify-center">
             <Image
@@ -240,7 +244,7 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
           </div>
         )}
 
-        {/* Contenido más grande y centrado */}
+        {/* Contenido */}
         <article className="prose prose-xl mt-8 mx-auto text-center max-w-3xl prose-h2:text-hughes-blue prose-a:text-[var(--hs-blue)]">
           {typeof content === "string" && /<\/?[a-z][\s\S]*>/i.test(content) ? (
             <div dangerouslySetInnerHTML={{ __html: content }} />
@@ -249,14 +253,14 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
           )}
         </article>
 
-        {/* Galería (usa componente sin título) */}
+        {/* Galería */}
         {gallery.length > 0 && (
           <div className="mt-16">
             <NewsGallery images={gallery} />
           </div>
         )}
 
-        {/* Botón Back to News al final (único) */}
+        {/* Back */}
         <div className="mt-12 text-left">
           <Link
             href="/news"

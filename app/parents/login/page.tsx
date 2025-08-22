@@ -5,6 +5,9 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
+// Evita prerender estático cuando dependes de searchParams
+export const dynamic = "force-dynamic";
+
 /* ───────────────────────────────
    Helpers de marca / estilos
 ─────────────────────────────── */
@@ -39,9 +42,9 @@ type StrapiList<T> = { data: Array<{ id: number; attributes: T }>; meta?: unknow
 type ParentAttrs = { fullName?: string; email: string };
 
 /* ───────────────────────────────
-   Login Page
+   Inner (usa hooks y searchParams)
 ─────────────────────────────── */
-export default function ParentLoginPage() {
+function ParentLoginInner() {
   const router = useRouter();
   const params = useSearchParams();
   const redirectTo = params.get("from") || "/help-center";
@@ -60,12 +63,10 @@ export default function ParentLoginPage() {
     const base = process.env.NEXT_PUBLIC_CMS_URL || "http://localhost:1337";
     const url = new URL(`${base}/api/parents`);
     url.searchParams.set("filters[email][$eq]", emailToFind);
-    // Si quieres traer relaciones, puedes añadir populate aquí:
     // url.searchParams.set("populate[students][populate][section][populate][timetableEntries]", "true");
 
     const res = await fetch(url.toString());
     if (!res.ok) {
-      // Si no hay permiso público en Strapi, esto podría fallar.
       throw new Error(`No se pudo leer el padre en Strapi. HTTP ${res.status}`);
     }
 
@@ -112,8 +113,6 @@ export default function ParentLoginPage() {
       try {
         await fetchAndStoreParentByEmail(email);
       } catch (err) {
-        // No bloqueamos el login si falla esta parte, pero dejamos rastro
-        // y mostramos un aviso suave (opcional).
         console.warn("Aviso: sesión del padre no pudo guardarse:", err);
       }
 
@@ -260,5 +259,16 @@ export default function ParentLoginPage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+/* ───────────────────────────────
+   Boundary de Suspense requerido
+─────────────────────────────── */
+export default function Page() {
+  return (
+    <React.Suspense fallback={null /* o un loader simple */}>
+      <ParentLoginInner />
+    </React.Suspense>
   );
 }

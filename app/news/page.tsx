@@ -1,10 +1,14 @@
+// app/news/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+
+// Evita el prerender estático (útil si dependes de searchParams)
+export const dynamic = "force-dynamic";
 
 /* ───────────── Tipos v4/v5 ───────────── */
 
@@ -18,12 +22,7 @@ type Media = {
   };
 };
 
-type KnownFieldKey =
-  | "title"
-  | "slug"
-  | "date"
-  | "gallery"
-  | "featured_image";
+type KnownFieldKey = "title" | "slug" | "date" | "gallery" | "featured_image";
 
 type NewsV5 = {
   id: number | string;
@@ -64,15 +63,10 @@ function getMediaArray(val: unknown): Media[] {
   if (Array.isArray(val)) return val as Media[];
   if (val && typeof val === "object") {
     const obj = val as Record<string, unknown>;
-    // v5: objeto media directo
-    if (
-      typeof (obj as { url?: string }).url === "string" ||
-      (obj as { url?: string }).url === undefined
-    ) {
-      return [obj as Media];
+    if (typeof (obj as { url?: string }).url === "string" || (obj as { url?: string }).url === undefined) {
+      return [obj as Media]; // v5: objeto media directo
     }
-    // v4: { data }
-    const d = obj.data as unknown;
+    const d = obj.data as unknown; // v4: { data }
     if (Array.isArray(d)) return d as Media[];
     if (d && typeof d === "object") return [d as Media];
   }
@@ -125,9 +119,8 @@ function detailHref(item: News): string {
 
 /* ───────────── Constantes ───────────── */
 
-const PAGE_SIZE = 9; // ← ahora 9 por página
-
-type SortOrder = "desc" | "asc"; // desc = más nuevo primero, asc = más antiguo primero
+const PAGE_SIZE = 9; // 9 por página
+type SortOrder = "desc" | "asc";
 
 /* ───────────── Botón Read More ───────────── */
 
@@ -145,9 +138,9 @@ function ReadMore({ href }: { href: string }) {
   );
 }
 
-/* ───────────── Página Principal ───────────── */
+/* ───────────── Componente interno (usa useSearchParams) ───────────── */
 
-export default function AllNewsPage() {
+function AllNewsInner() {
   const router = useRouter();
   const params = useSearchParams();
 
@@ -169,8 +162,6 @@ export default function AllNewsPage() {
         qs.set("populate[gallery]", "true");
         qs.set("populate[featured_image]", "true");
         qs.set("pagination[pageSize]", "300");
-        // Si usas Strapi v4+ y tienes el campo date, podrías habilitar sort desde el backend:
-        // qs.set("sort", sortOrder === "desc" ? "date:desc" : "date:asc");
         const res = await fetch(`${base}/api/newspapers?${qs.toString()}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
@@ -190,7 +181,7 @@ export default function AllNewsPage() {
     };
   }, []);
 
-  // Orden configurable por fecha (desc/asc) si existe; los sin fecha al final de desc y al inicio de asc
+  // Orden configurable por fecha (desc/asc)
   const sorted = useMemo(() => {
     const a = [...data];
     a.sort((x, y) => {
@@ -201,13 +192,11 @@ export default function AllNewsPage() {
 
       if (xNaN && yNaN) return 0;
       if (sortOrder === "desc") {
-        // sin fecha → al final
-        if (xNaN) return 1;
+        if (xNaN) return 1; // sin fecha al final
         if (yNaN) return -1;
         return dy - dx; // más nuevo primero
       } else {
-        // ascendente: sin fecha → al inicio
-        if (xNaN) return -1;
+        if (xNaN) return -1; // sin fecha al inicio
         if (yNaN) return 1;
         return dx - dy; // más antiguo primero
       }
@@ -228,7 +217,7 @@ export default function AllNewsPage() {
     router.push(`/news?${search.toString()}`, { scroll: true });
   }
 
-  // Si el usuario cambia el sort con el selector, sincronizamos querystring y reseteamos a página 1
+  // Sincroniza selector con el querystring
   useEffect(() => {
     const qSort = (params.get("sort") as SortOrder) || "desc";
     if (qSort !== sortOrder) setSortOrder(qSort);
@@ -238,44 +227,33 @@ export default function AllNewsPage() {
   return (
     <section className="w-full py-16" style={{ background: "#f5f6fb" }}>
       <div className="mx-auto max-w-6xl px-4">
-{/* Encabezado */}
-<div className="mb-6 flex flex-col gap-3 md:gap-4 md:mb-8">
-  {/* Título estilizado (como el ejemplo) */}
-  <div className="flex items-center justify-center gap-3 text-center">
-    <span
-      aria-hidden
-      className="inline-block h-4 w-4 rounded-full"
-      style={{ background: "var(--hs-yellow)" }}
-    />
-    <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-hughes-blue">
-      Hughes Newspaper
-    </h1>
-  </div>
+        {/* Encabezado */}
+        <div className="mb-6 flex flex-col gap-3 md:gap-4 md:mb-8">
+          <div className="flex items-center justify-center gap-3 text-center">
+            <span aria-hidden className="inline-block h-4 w-4 rounded-full" style={{ background: "var(--hs-yellow)" }} />
+            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-hughes-blue">Hughes Newspaper</h1>
+          </div>
 
-  <p className="text-center text-sm md:text-base text-hughes-blue/80">
-    Updates and highlights from our community.
-  </p>
+          <p className="text-center text-sm md:text-base text-hughes-blue/80">Updates and highlights from our community.</p>
 
-  {/* Controles: Orden (igual que antes) */}
-  <div className="mt-2 flex w-full items-center justify-end gap-2 md:mt-4">
-    <label htmlFor="orderBy" className="text-sm font-medium text-hughes-blue">
-      Order by
-    </label>
-    <select
-      id="orderBy"
-      value={sortOrder}
-      onChange={(e) => {
-        const next = (e.target.value as SortOrder) || "desc";
-        setQuery({ page: 1, sort: next });
-      }}
-      className="rounded-xl border bg-white px-3 py-2 text-sm text-hughes-blue"
-      style={{ borderColor: "var(--hs-yellow)" }}
-    >
-      <option value="desc">Newest → Oldest</option>
-      <option value="asc">Oldest → Newest</option>
-    </select>
-  </div>
-</div>
+          {/* Controles: Orden */}
+          <div className="mt-2 flex w-full items-center justify-end gap-2 md:mt-4">
+            <label htmlFor="orderBy" className="text-sm font-medium text-hughes-blue">Order by</label>
+            <select
+              id="orderBy"
+              value={sortOrder}
+              onChange={(e) => {
+                const next = (e.target.value as SortOrder) || "desc";
+                setQuery({ page: 1, sort: next });
+              }}
+              className="rounded-xl border bg-white px-3 py-2 text-sm text-hughes-blue"
+              style={{ borderColor: "var(--hs-yellow)" }}
+            >
+              <option value="desc">Newest → Oldest</option>
+              <option value="asc">Oldest → Newest</option>
+            </select>
+          </div>
+        </div>
 
         {/* Grid con animación */}
         <AnimatePresence mode="wait">
@@ -288,10 +266,7 @@ export default function AllNewsPage() {
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
             >
               {Array.from({ length: PAGE_SIZE }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-[320px] bg-white rounded-2xl border animate-pulse"
-                />
+                <div key={i} className="h-[320px] bg-white rounded-2xl border animate-pulse" />
               ))}
             </motion.div>
           ) : error ? (
@@ -351,9 +326,7 @@ export default function AllNewsPage() {
                       <div className="text-[12px] font-semibold tracking-widest uppercase text-hughes-blue">
                         {date ? new Date(date).toLocaleDateString() : ""}
                       </div>
-                      <h3 className="mt-2 text-2xl font-semibold leading-snug text-hughes-blue">
-                        {title}
-                      </h3>
+                      <h3 className="mt-2 text-2xl font-semibold leading-snug text-hughes-blue">{title}</h3>
                       <ReadMore href={href} />
                     </div>
                   </article>
@@ -382,11 +355,7 @@ export default function AllNewsPage() {
                   key={p}
                   onClick={() => setQuery({ page: p, sort: sortOrder })}
                   className="rounded-full px-4 py-2 text-sm tab-pill border"
-                  style={
-                    active
-                      ? { background: "var(--hs-yellow)", borderColor: "var(--hs-yellow)" }
-                      : { background: "#ffffff", borderColor: "transparent" }
-                  }
+                  style={active ? { background: "var(--hs-yellow)", borderColor: "var(--hs-yellow)" } : { background: "#ffffff", borderColor: "transparent" }}
                 >
                   {p}
                 </button>
@@ -404,5 +373,14 @@ export default function AllNewsPage() {
         )}
       </div>
     </section>
+  );
+}
+
+/* ───────────── Boundary de Suspense ───────────── */
+export default function Page() {
+  return (
+    <Suspense fallback={null /* o un loader pequeño */}>
+      <AllNewsInner />
+    </Suspense>
   );
 }
