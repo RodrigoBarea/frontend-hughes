@@ -1,3 +1,4 @@
+// app/admissions/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -6,10 +7,10 @@ import { useState } from "react";
 function getYouTubeId(url: string) {
   try {
     const u = new URL(url);
-    if (u.hostname.includes("youtu.be")) return u.pathname.slice(1);         // youtu.be/<id>
-    if (u.searchParams.get("v")) return u.searchParams.get("v")!;            // watch?v=<id>
-    if (u.pathname.startsWith("/shorts/")) return u.pathname.split("/")[2];  // shorts/<id>
-    if (u.pathname.startsWith("/embed/")) return u.pathname.split("/")[2];   // embed/<id>
+    if (u.hostname.includes("youtu.be")) return u.pathname.slice(1); // youtu.be/<id>
+    if (u.searchParams.get("v")) return u.searchParams.get("v")!;   // watch?v=<id>
+    if (u.pathname.startsWith("/shorts/")) return u.pathname.split("/")[2];
+    if (u.pathname.startsWith("/embed/")) return u.pathname.split("/")[2];
   } catch {}
   return null;
 }
@@ -75,42 +76,62 @@ function YouTubeEmbedNoHover({ url, title }: { url: string; title: string }) {
 }
 
 /* ───────────── Tipos del formulario ───────────── */
+type ArtImportance = "" | "no" | "poco" | "importante" | "muy";
+type YesNo = "yes" | "no" | "";
+
 type FormState = {
   studentName: string;
-  incomingCourse: string; // ahora select (enum)
+  studentIdNumber: string;      // Nº C.I. del estudiante
+  incomingCourse: string;       // select
   birthDate: string;
   currentSchool: string;
+
   parentsFullNames: string;
-  parentsPhone: string;
+  fatherPhone: string;
+  motherPhone: string;
   parentsEmail: string;
+
+  hasSiblingsHS: YesNo;
+  siblingNames: string;
+
+  references: string;           // ¿Qué referencias tiene de Hughes?
+  artImportance: ArtImportance; // pregunta Google #1
+  changeReason: string;         // pregunta Google #2 (condicional por curso)
+
   preferredInterview?: string;
 };
 
 /* Lista enumerada de grados (sin paralelos) */
 const GRADE_OPTIONS = [
   "Kinder",
-  "1st",
-  "2nd",
-  "3rd",
-  "4th",
-  "5th",
-  "6th",
-  "7th",
-  "8th",
-  "9th",
-  "10th",
-  "11th",
-  "12th",
-];
+  "1st", "2nd", "3rd", "4th", "5th",
+  "6th", "7th", "8th", "9th", "10th", "11th", "12th",
+] as const;
+
+// cursos desde 2º en adelante para mostrar "motivo del cambio"
+const UPPER_GRADES = new Set<string>([
+  "2nd","3rd","4th","5th","6th","7th","8th","9th","10th","11th","12th",
+]);
 
 const INITIAL: FormState = {
   studentName: "",
+  studentIdNumber: "",
   incomingCourse: "",
   birthDate: "",
   currentSchool: "",
+
   parentsFullNames: "",
-  parentsPhone: "",
+  fatherPhone: "",
+  motherPhone: "",
   parentsEmail: "",
+
+  hasSiblingsHS: "",
+  siblingNames: "",
+
+  references: "",
+  artImportance: "",
+  changeReason: "",
+
   preferredInterview: "",
 };
 
@@ -120,6 +141,8 @@ export default function AdmissionsPage() {
   const [ok, setOk] = useState<null | boolean>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const showChangeReason = UPPER_GRADES.has(form.incomingCourse);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
@@ -127,20 +150,26 @@ export default function AdmissionsPage() {
     setError(null);
 
     try {
+      // Validaciones mínimas
       if (!form.studentName || !form.incomingCourse || !form.parentsEmail) {
         setError("Please complete required fields.");
         setSubmitting(false);
         return;
       }
 
+      // Enviar todo el payload (incluye los nuevos campos)
       const res = await fetch("/api/admissions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ payload: form }),
       });
-      const json = await res.json();
+      const json: unknown = await res.json();
 
-      if (!res.ok || !json.ok) {
+      const okFlag = typeof json === "object" && json !== null && "ok" in (json as Record<string, unknown>)
+        ? Boolean((json as { ok?: unknown }).ok)
+        : false;
+
+      if (!res.ok || !okFlag) {
         setOk(false);
         setError("There was a problem submitting your application. Please try again.");
       } else {
@@ -162,12 +191,12 @@ export default function AdmissionsPage() {
         <div className="mx-auto max-w-7xl px-6 py-12 md:py-16">
           <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight">Admissions</h1>
           <p className="mt-3 text-white/95 max-w-2xl text-lg md:text-xl">
-            Limited seats. Submit your interview request today and start your path to Hugues.
+            Limited seats. Submit your interview request today and start your path to Hughes Schools.
           </p>
         </div>
       </section>
 
-      {/* Intro + video (estilo referencia) */}
+      {/* Intro + video */}
       <section className="bg-white">
         <div className="mx-auto max-w-7xl px-6 py-12 md:py-16 grid grid-cols-1 md:grid-cols-2 gap-10">
           {/* Texto */}
@@ -219,11 +248,11 @@ export default function AdmissionsPage() {
             </a>
           </div>
 
-          {/* Video con miniatura y botón de play (sin hover de YouTube) */}
+          {/* Video */}
           <div>
             <YouTubeEmbedNoHover
               url="https://www.youtube.com/watch?v=Q85YLX65Oa8&list=TLGG5EgtexIIU6gxNDA4MjAyNQ"
-              title="Hugues School Tour"
+              title="Hughes Schools Tour"
             />
           </div>
         </div>
@@ -234,7 +263,7 @@ export default function AdmissionsPage() {
         <div className="mx-auto max-w-7xl px-6 py-12 md:py-16 grid grid-cols-1 lg:grid-cols-12 gap-10">
           {/* Lado izquierdo: por qué aplicar */}
           <div className="lg:col-span-6">
-            <h3 className="text-2xl md:text-3xl font-bold text-hughes-blue">Why apply to Hugues?</h3>
+            <h3 className="text-2xl md:text-3xl font-bold text-hughes-blue">Why apply to Hughes Schools?</h3>
             <p className="mt-3 text-hughes-blue/80">
               Our admissions process is designed to get to know your child and guide your family through a smooth transition.
             </p>
@@ -242,7 +271,7 @@ export default function AdmissionsPage() {
               className="mt-6 p-5 rounded-2xl border bg-white text-sm md:text-base text-hughes-blue/90 leading-relaxed"
               style={{ borderColor: "var(--hs-yellow)" }}
             >
-              <p className="font-semibold mb-2">Benefits of joining Hugues:</p>
+              <p className="font-semibold mb-2">Benefits of joining Hughes Schools:</p>
               <ul className="list-disc ml-5 space-y-2">
                 <li><strong>Rigorous academics</strong> with modern methodologies and high expectations.</li>
                 <li><strong>Holistic development</strong>: character, arts, sports and leadership.</li>
@@ -262,6 +291,7 @@ export default function AdmissionsPage() {
               style={{ borderColor: "#ececf4" }}
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Datos del estudiante */}
                 <div className="md:col-span-2">
                   <label className="block text-sm font-semibold text-hughes-blue">
                     Student name *
@@ -271,6 +301,18 @@ export default function AdmissionsPage() {
                     value={form.studentName}
                     onChange={(e) => setForm({ ...form, studentName: e.target.value })}
                     className="mt-2 w-full rounded-xl border px-3 py-2"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-hughes-blue">
+                    ID number (N.º C.I.)
+                  </label>
+                  <input
+                    value={form.studentIdNumber}
+                    onChange={(e) => setForm({ ...form, studentIdNumber: e.target.value })}
+                    className="mt-2 w-full rounded-xl border px-3 py-2"
+                    placeholder="e.g., 12345678"
                   />
                 </div>
 
@@ -312,6 +354,7 @@ export default function AdmissionsPage() {
                   />
                 </div>
 
+                {/* Contacto de padres */}
                 <div className="md:col-span-2">
                   <label className="block text-sm font-semibold text-hughes-blue">Parents’ full names</label>
                   <input
@@ -323,15 +366,26 @@ export default function AdmissionsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-hughes-blue">Parents’ phone</label>
+                  <label className="block text-sm font-semibold text-hughes-blue">Father’s phone</label>
                   <input
-                    value={form.parentsPhone}
-                    onChange={(e) => setForm({ ...form, parentsPhone: e.target.value })}
+                    value={form.fatherPhone}
+                    onChange={(e) => setForm({ ...form, fatherPhone: e.target.value })}
                     className="mt-2 w-full rounded-xl border px-3 py-2"
+                    placeholder="+591 70000000"
                   />
                 </div>
 
                 <div>
+                  <label className="block text-sm font-semibold text-hughes-blue">Mother’s phone</label>
+                  <input
+                    value={form.motherPhone}
+                    onChange={(e) => setForm({ ...form, motherPhone: e.target.value })}
+                    className="mt-2 w-full rounded-xl border px-3 py-2"
+                    placeholder="+591 70000000"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
                   <label className="block text-sm font-semibold text-hughes-blue">Parents’ email *</label>
                   <input
                     required
@@ -339,9 +393,103 @@ export default function AdmissionsPage() {
                     value={form.parentsEmail}
                     onChange={(e) => setForm({ ...form, parentsEmail: e.target.value })}
                     className="mt-2 w-full rounded-xl border px-3 py-2"
+                    placeholder="family@email.com"
                   />
                 </div>
 
+                {/* Hermanos en Hughes */}
+                <div>
+                  <label className="block text-sm font-semibold text-hughes-blue">
+                    ¿Tiene hermanos en Hughes Schools?
+                  </label>
+                  <div className="mt-2 flex gap-4 text-sm text-hughes-blue">
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="hasSiblingsHS"
+                        checked={form.hasSiblingsHS === "yes"}
+                        onChange={() => setForm({ ...form, hasSiblingsHS: "yes" })}
+                      />
+                      Sí
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="hasSiblingsHS"
+                        checked={form.hasSiblingsHS === "no"}
+                        onChange={() => setForm({ ...form, hasSiblingsHS: "no", siblingNames: "" })}
+                      />
+                      No
+                    </label>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-hughes-blue">
+                    Nombre(s) del/los hermano(s)
+                  </label>
+                  <input
+                    value={form.siblingNames}
+                    onChange={(e) => setForm({ ...form, siblingNames: e.target.value })}
+                    className="mt-2 w-full rounded-xl border px-3 py-2"
+                    placeholder="Si aplica"
+                    disabled={form.hasSiblingsHS !== "yes"}
+                  />
+                </div>
+
+                {/* Referencias */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-hughes-blue">
+                    ¿Qué referencias tiene de Hughes Schools?
+                  </label>
+                  <textarea
+                    value={form.references}
+                    onChange={(e) => setForm({ ...form, references: e.target.value })}
+                    className="mt-2 w-full rounded-xl border px-3 py-2 min-h-[90px]"
+                    placeholder="Por ejemplo: amigos/familiares, redes sociales, visita al campus, etc."
+                  />
+                </div>
+
+                {/* Pregunta Google #1: Importancia artística */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-hughes-blue">
+                    ¿Qué tan importante considera que es la formación artística (música y/o danza) para su hijo(a)?
+                  </label>
+                  <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-hughes-blue">
+                    {[
+                      { v: "no", t: "No es importante" },
+                      { v: "poco", t: "Poco importante" },
+                      { v: "importante", t: "Importante" },
+                      { v: "muy", t: "Muy importante" },
+                    ].map(opt => (
+                      <label key={opt.v} className="inline-flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="artImportance"
+                          checked={form.artImportance === (opt.v as ArtImportance)}
+                          onChange={() => setForm({ ...form, artImportance: opt.v as ArtImportance })}
+                        />
+                        {opt.t}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Pregunta Google #2: Motivo del cambio (condicional) */}
+                {showChangeReason && (
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-semibold text-hughes-blue">
+                      En caso de que ingrese a 2.º de primaria o cursos superiores, ¿cuál es el motivo del cambio de colegio?
+                    </label>
+                    <textarea
+                      value={form.changeReason}
+                      onChange={(e) => setForm({ ...form, changeReason: e.target.value })}
+                      className="mt-2 w-full rounded-xl border px-3 py-2 min-h-[90px]"
+                    />
+                  </div>
+                )}
+
+                {/* Fecha de entrevista */}
                 <div className="md:col-span-2">
                   <label className="block text-sm font-semibold text-hughes-blue">
                     Preferred interview date (optional)

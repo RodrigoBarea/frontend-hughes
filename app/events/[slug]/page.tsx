@@ -1,70 +1,81 @@
-// app/events/page.tsx
-"use client";
-
-import { useEffect, useMemo, useState, Suspense } from "react";
+// app/events/[slug]/page.tsx
 import Image from "next/image";
-import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
+import { notFound } from "next/navigation";
 
-// Evita prerender estático (útil si dependes de searchParams y CSR)
 export const dynamic = "force-dynamic";
 
-/** ───────────── Tipos v4/v5 ───────────── */
+/* ───────── Tipos ───────── */
 type Media = {
-  id?: number | string;
   url?: string;
   alternativeText?: string | null;
-  attributes?: {
-    url?: string;
-    alternativeText?: string | null;
-  };
+  attributes?: { url?: string; alternativeText?: string | null };
 };
 
-type KnownFieldKey = "title" | "type" | "gallery" | "featured_image" | "slug";
-
-type BlogV5 = {
+type V5 = {
   id: number | string;
   title?: string;
   type?: string;
   slug?: string;
+  date?: string;
   gallery?: Media[] | Media | null;
   featured_image?: Media | null;
+  content?: unknown; // string (v4) o JSON rich-text (v5)
 };
 
-type BlogV4 = {
+type V4 = {
   id: number | string;
   attributes?: {
     title?: string;
     type?: string;
     slug?: string;
+    date?: string;
     gallery?: { data?: Media[] | Media | null } | Media[] | Media | null;
     featured_image?: { data?: Media | null } | Media | null;
+    content?: unknown;
   };
 };
 
-type Blog = BlogV4 | BlogV5;
+type Row = V4 | V5;
 
-/** ───────────── Helpers v4/v5 ───────────── */
-function getAttr<T = unknown>(row: Blog, key: KnownFieldKey): T | undefined {
-  if ((row as Record<string, unknown>)[key] !== undefined) {
-    return (row as Record<string, unknown>)[key] as T;
+type KnownFieldKey =
+  | "title"
+  | "type"
+  | "slug"
+  | "date"
+  | "gallery"
+  | "featured_image"
+  | "content";
+
+/* ───────── Helpers de tipo ───────── */
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null;
+}
+
+function abs(u?: string | null): string | null {
+  if (!u) return null;
+  if (u.startsWith("http://") || u.startsWith("https://")) return u;
+  const base = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:1337";
+  return `${base}${u}`;
+}
+
+function getAttr<T = unknown>(row: Row, key: KnownFieldKey): T | undefined {
+  if (isRecord(row) && key in row) {
+    return (row as Record<KnownFieldKey, unknown>)[key] as T; // v5
   }
-  const attrs = (row as BlogV4).attributes as Record<string, unknown> | undefined;
-  if (attrs && attrs[key] !== undefined) {
-    return attrs[key] as T;
+  const attrs = (row as { attributes?: unknown }).attributes;
+  if (isRecord(attrs) && key in attrs) {
+    return (attrs as Record<KnownFieldKey, unknown>)[key] as T; // v4
   }
   return undefined;
 }
 
 function getMediaArray(val: unknown): Media[] {
   if (Array.isArray(val)) return val as Media[];
-  if (val && typeof val === "object") {
-    const obj = val as Record<string, unknown>;
-    if (typeof obj.url === "string" || obj.url === undefined) return [obj as Media];
-    const d = obj.data as unknown;
+  if (isRecord(val)) {
+    if ("url" in val) return [val as Media]; // v5 (media directo)
+    const d = (val as { data?: unknown }).data; // v4 ({ data })
     if (Array.isArray(d)) return d as Media[];
-    if (d && typeof d === "object") return [d as Media];
+    if (isRecord(d)) return [d as Media];
   }
   return [];
 }
@@ -80,281 +91,174 @@ function mediaAlt(m?: Media | null): string | undefined {
   return m?.alternativeText ?? m?.attributes?.alternativeText ?? undefined;
 }
 
-function abs(u?: string | null) {
-  if (!u) return null;
-  if (u.startsWith("http://") || u.startsWith("https://")) return u;
-  const base = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:1337";
-  return `${base}${u}`;
-}
+function pickCover(item: Row): { url: string; alt: string } | null {
+  const title = (getAttr<string>(item, "title") ?? "") as string;
+  const gRaw = getAttr(item, "gallery");
+  const gArr = getMediaArray(gRaw);
+  const first = gArr[0];
+  const u1 = mediaUrl(first);
+  if (u1) return { url: u1, alt: mediaAlt(first) ?? title };
 
-function normalizeCover(blog: Blog): { url: string; alt: string } | null {
-  const title = (getAttr<string>(blog, "title") ?? "") as string;
-  const galleryRaw = getAttr(blog, "gallery");
-  const galleryArr = getMediaArray(galleryRaw);
-  const first = galleryArr[0];
-  if (first) {
-    const u = mediaUrl(first);
-    if (u) return { url: u, alt: mediaAlt(first) ?? title };
-  }
-  const fiRaw = getAttr(blog, "featured_image");
-  const fiArr = getMediaArray(fiRaw);
-  const fi = fiArr[0] ?? null;
-  const u = mediaUrl(fi);
-  if (u) return { url: u, alt: mediaAlt(fi) ?? title };
+  const fRaw = getAttr(item, "featured_image");
+  const fArr = getMediaArray(fRaw);
+  const f = fArr[0];
+  const u2 = mediaUrl(f);
+  if (u2) return { url: u2, alt: mediaAlt(f) ?? title };
+
   return null;
 }
 
-function recapHref(item: Blog): string {
-  const slug = (getAttr<string>(item, "slug") ?? "").trim();
-  if (slug) return `/events/${encodeURIComponent(slug)}`;
-  return `/events/${encodeURIComponent(String(item.id))}`;
+/* Galería completa (urls + alt), deduplicada y (opcional) sin el cover */
+function pickGallery(item: Row, excludeUrl?: string | null): Array<{ url: string; alt: string }> {
+  const title = (getAttr<string>(item, "title") ?? "") as string;
+  const raw = getAttr(item, "gallery");
+  const arr = getMediaArray(raw);
+
+  const seen = new Set<string>();
+  const out: Array<{ url: string; alt: string }> = [];
+
+  for (const m of arr) {
+    const u = mediaUrl(m);
+    if (!u) continue;
+    if (excludeUrl && u === excludeUrl) continue;
+    if (seen.has(u)) continue;
+    seen.add(u);
+    out.push({ url: u, alt: mediaAlt(m) ?? title });
+  }
+  return out;
 }
 
-/** ───────────── Constantes ───────────── */
-const PAGE_SIZE = 6;
-const TYPES = ["All", "Academic", "Artistic", "Extracurricular"] as const;
-type EventType = (typeof TYPES)[number];
-
-/** ───────────── Botón Read More ───────────── */
-function ReadMore({ href }: { href: string }) {
-  return (
-    <a href={href} className="group inline-flex items-center mt-3">
-      <span className="relative text-base font-semibold text-hughes-blue">
-        Read more
-        <span
-          className="absolute left-0 -bottom-0.5 h-[2px] w-full origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100"
-          style={{ background: "var(--hs-yellow)" }}
-        />
-      </span>
-    </a>
-  );
+/* ───────── Parse helpers (sin any) ───────── */
+function rowsFromListJson(json: unknown): Row[] {
+  if (Array.isArray(json)) return json as Row[];
+  if (isRecord(json) && Array.isArray(json.data)) return json.data as Row[];
+  return [];
+}
+function rowFromItemJson(json: unknown): Row | null {
+  if (isRecord(json) && isRecord(json.data)) return json.data as Row;
+  return null;
 }
 
-/** ───────────── Componente interno (usa useSearchParams) ───────────── */
-function EventsIndexInner() {
-  const router = useRouter();
-  const params = useSearchParams();
+/* ───────── Rich text → texto plano (fallback) ───────── */
+function toPlainText(val: unknown): string {
+  if (typeof val === "string") return val;
+  if (Array.isArray(val)) return val.map(toPlainText).filter(Boolean).join(" ");
 
-  const typeParam = (params.get("type") || "All") as EventType;
-  const pageParam = Math.max(1, parseInt(params.get("page") || "1", 10) || 1);
-
-  const [data, setData] = useState<Blog[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        setLoading(true);
-        const base = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:1337";
-        const qs = new URLSearchParams();
-        qs.set("populate[gallery]", "true");
-        qs.set("populate[featured_image]", "true");
-        qs.set("pagination[pageSize]", "300");
-        const res = await fetch(`${base}/api/blogs?${qs.toString()}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = (await res.json()) as { data?: Blog[] } | Blog[];
-        const items: Blog[] = Array.isArray(json) ? json : json?.data ?? [];
-        if (!cancelled) setData(items);
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : "Unknown error";
-        if (!cancelled) setError(msg);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+  if (isRecord(val)) {
+    if (typeof (val as { text?: unknown }).text === "string") {
+      return String((val as { text?: string }).text);
     }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    const children = (val as { children?: unknown }).children;
+    if (Array.isArray(children)) return children.map(toPlainText).filter(Boolean).join(" ");
+  }
+  return "";
+}
 
-  const filtered = useMemo(() => {
-    if (typeParam === "All") return data;
-    return data.filter((b) => (getAttr<string>(b, "type") || "") === typeParam);
-  }, [data, typeParam]);
+/* ───────── Página ───────── */
+export default async function EventDetailPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const base = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:1337";
 
-  const total = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const page = Math.min(pageParam, totalPages);
-  const start = (page - 1) * PAGE_SIZE;
-  const pageItems = filtered.slice(start, start + PAGE_SIZE);
+  const common = new URLSearchParams();
+  common.set("populate[gallery]", "true");
+  common.set("populate[featured_image]", "true");
 
-  function setQuery(next: { page?: number; type?: EventType }) {
-    const search = new URLSearchParams(params.toString());
-    if (next.type) search.set("type", next.type);
-    if (next.page) search.set("page", String(next.page));
-    if (next.type && !next.page) search.set("page", "1");
-    router.push(`/events?${search.toString()}`, { scroll: true });
+  let row: Row | null = null;
+
+  if (/^\d+$/.test(slug)) {
+    const res = await fetch(`${base}/api/blogs/${slug}?${common.toString()}`, { cache: "no-store" });
+    if (!res.ok) notFound();
+    row = rowFromItemJson(await res.json());
+  } else {
+    const q = new URLSearchParams(common);
+    q.set("filters[slug][$eq]", slug);
+    const res = await fetch(`${base}/api/blogs?${q.toString()}`, { cache: "no-store" });
+    if (!res.ok) notFound();
+    const items = rowsFromListJson(await res.json());
+    row = items[0] ?? null;
+  }
+
+  if (!row) notFound();
+
+  const title = (getAttr<string>(row, "title") ?? "Untitled") as string;
+  const type = (getAttr<string>(row, "type") ?? "") as string;
+  const date = (getAttr<string>(row, "date") ?? "") as string;
+  const contentRaw = getAttr<unknown>(row, "content");
+
+  const cover = pickCover(row);
+  const gallery = pickGallery(row, cover?.url ?? null);
+
+  // Render seguro de `content`
+  let contentNode: JSX.Element | null = null;
+  if (typeof contentRaw === "string") {
+    contentNode = (
+      <div
+        className="prose prose-slate mt-6 max-w-none text-hughes-blue"
+        dangerouslySetInnerHTML={{ __html: contentRaw }}
+      />
+    );
+  } else {
+    const text = toPlainText(contentRaw);
+    if (text.trim()) {
+      contentNode = (
+        <div className="prose prose-slate mt-6 max-w-none text-hughes-blue">
+          <p>{text}</p>
+        </div>
+      );
+    }
   }
 
   return (
-    <section className="w-full py-16" style={{ background: "#f5f6fb" }}>
-      <div className="mx-auto max-w-6xl px-4">
-        {/* Encabezado */}
-        <div className="mb-8 text-center">
-          <div className="mx-auto inline-flex items-center gap-2 tag-hs">Event Recaps</div>
-          <h1 className="mt-3 text-3xl md:text-4xl font-bold tracking-tight text-hughes-blue">
-            All Events
-          </h1>
-          <p className="text-sm md:text-base mt-2 text-hughes-blue">
-            Browse our academic, artistic, and extracurricular moments.
-          </p>
+    <main className="min-h-screen bg-white">
+      <section className="mx-auto max-w-4xl px-6 py-10 md:py-14">
+        <div className="mb-3 text-[12px] font-semibold tracking-widest uppercase text-hughes-blue">
+          {type} {date ? `• ${new Date(date).toLocaleDateString()}` : ""}
         </div>
+        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-hughes-blue">{title}</h1>
 
-        {/* Filtros */}
-        <div className="mb-6 flex flex-wrap items-center justify-center gap-2">
-          {TYPES.map((t) => {
-            const active = t === typeParam;
-            return (
-              <button
-                key={t}
-                className="tab-pill rounded-full px-4 py-2 border transition-colors"
-                onClick={() => setQuery({ type: t })}
-                style={
-                  active
-                    ? { background: "var(--hs-yellow)", borderColor: "var(--hs-yellow)" }
-                    : { background: "#ffffff", borderColor: "transparent" }
-                }
-              >
-                {t}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Grid con animación */}
-        <AnimatePresence mode="wait">
-          {loading ? (
-            <motion.div
-              key="loading"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
-            >
-              {Array.from({ length: PAGE_SIZE }).map((_, i) => (
-                <div key={i} className="h-[320px] bg-white rounded-2xl border animate-pulse" />
-              ))}
-            </motion.div>
-          ) : error ? (
-            <motion.div
-              key="error"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="rounded-xl border p-6 text-center text-hughes-blue"
-              style={{ borderColor: "var(--hs-yellow)" }}
-            >
-              Error loading events: {error}
-            </motion.div>
-          ) : total === 0 ? (
-            <motion.p
-              key="empty"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="text-center text-hughes-blue"
-            >
-              No events published yet.
-            </motion.p>
-          ) : (
-            <motion.div
-              key={typeParam + "-" + page}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.25, ease: "easeOut" }}
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10"
-            >
-              {pageItems.map((item) => {
-                const title = (getAttr<string>(item, "title") ?? "Untitled") as string;
-                const type = (getAttr<string>(item, "type") ?? "") as string;
-                const cover = normalizeCover(item);
-                const href = recapHref(item);
-                return (
-                  <article key={String(item.id)}>
-                    <a href={href} className="block relative overflow-hidden rounded-3xl">
-                      <div className="relative aspect-[16/10] w-full rounded-3xl overflow-hidden">
-                        {cover ? (
-                          <Image
-                            src={cover.url}
-                            alt={cover.alt}
-                            fill
-                            sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
-                            className="object-cover"
-                          />
-                        ) : (
-                          <div className="h-full w-full bg-neutral-100" />
-                        )}
-                      </div>
-                    </a>
-                    <div className="mt-4">
-                      <div className="text-[12px] font-semibold tracking-widest uppercase text-hughes-blue">
-                        {type || ""}
-                      </div>
-                      <h3 className="mt-2 text-2xl font-semibold leading-snug text-hughes-blue">
-                        {title}
-                      </h3>
-                      <ReadMore href={href} />
-                    </div>
-                  </article>
-                );
-              })}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Paginación */}
-        {totalPages > 1 && (
-          <div className="mt-10 flex items-center justify-center gap-2">
-            <button
-              className="rounded-full border px-3 py-2 text-hughes-blue disabled:opacity-40"
-              onClick={() => setQuery({ page: Math.max(1, page - 1) })}
-              disabled={page <= 1}
-              style={{ background: "var(--hs-yellow)", borderColor: "var(--hs-yellow)" }}
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            {Array.from({ length: totalPages }).map((_, i) => {
-              const p = i + 1;
-              const active = p === page;
-              return (
-                <button
-                  key={p}
-                  onClick={() => setQuery({ page: p })}
-                  className="rounded-full px-4 py-2 text-sm tab-pill border"
-                  style={
-                    active
-                      ? { background: "var(--hs-yellow)", borderColor: "var(--hs-yellow)" }
-                      : { background: "#ffffff", borderColor: "transparent" }
-                  }
-                >
-                  {p}
-                </button>
-              );
-            })}
-            <button
-              className="rounded-full border px-3 py-2 text-hughes-blue disabled:opacity-40"
-              onClick={() => setQuery({ page: Math.min(totalPages, page + 1) })}
-              disabled={page >= totalPages}
-              style={{ background: "var(--hs-yellow)", borderColor: "var(--hs-yellow)" }}
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
+        {cover && (
+          <div className="mt-6 relative w-full overflow-hidden rounded-3xl">
+            <div className="relative aspect-[16/10] w-full">
+              <Image
+                src={cover.url}
+                alt={cover.alt}
+                fill
+                sizes="(min-width: 1024px) 1024px, 100vw"
+                className="object-cover"
+                priority
+              />
+            </div>
           </div>
         )}
-      </div>
-    </section>
-  );
-}
 
-/** ───────────── Boundary de Suspense requerido ───────────── */
-export default function Page() {
-  return (
-    <Suspense fallback={null /* o un loader pequeño */}>
-      <EventsIndexInner />
-    </Suspense>
+        {contentNode}
+
+        {/* ───────── Galería ───────── */}
+        {gallery.length > 0 && (
+          <div className="mt-10">
+            <h2 className="text-xl font-bold text-hughes-blue mb-4">Gallery</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {gallery.map((img) => (
+                <div key={img.url} className="relative overflow-hidden rounded-2xl">
+                  <div className="relative aspect-[16/10] w-full">
+                    <Image
+                      src={img.url}
+                      alt={img.alt}
+                      fill
+                      sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+                      className="object-cover"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+    </main>
   );
 }

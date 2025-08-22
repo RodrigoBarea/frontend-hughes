@@ -43,7 +43,7 @@ const tiers: Tier[] = [
         </ul>
       </>
     ),
-    image: "/32.jpg",
+    image: "/32.JPG",
   },
   {
     id: "specialization-level",
@@ -76,7 +76,7 @@ const tiers: Tier[] = [
         </p>
       </>
     ),
-    image: "/33.jpg",
+    image: "/33.JPG",
     flipped: true,
   },
   {
@@ -119,7 +119,7 @@ const tiers: Tier[] = [
         </div>
       </>
     ),
-    image: "/34.jpg",
+    image: "/34.JPG",
   },
 ];
 

@@ -97,7 +97,7 @@ const blocks: Block[] = [
       </>
     ),
     bullets: ["Math Fair", "Science Fair", "STEM + Competition", "Robotics"],
-    images: ["/12.jpg", "/13.jpg", "/14.jpg"],
+    images: ["/12.JPG", "/13.JPG", "/14.JPG"],
   },
   {
     id: "space-school",
@@ -118,13 +118,13 @@ const blocks: Block[] = [
       "Space Center Scholarship Students",
       "Contacts",
     ],
-    images: ["/15.png", "/16.jpg", "/17.jpg"],
+    images: ["/15.png", "/16.JPG", "/17.JPG"],
     flipped: true,
   },
   {
     id: "hsmun",
     kicker: "HSMun – MiniMun",
-    title: "Model United Nations at Hugues",
+    title: "Model United Nations at Hughes Schools",
     body: (
       <>
         Our students participate in the <strong>Model United Nations</strong>, where they gain knowledge
@@ -132,7 +132,7 @@ const blocks: Block[] = [
       </>
     ),
     bullets: ["HS Mun", "Mini Mun"],
-    images: ["/18.jpg", "/19.jpg", "/20.jpg", "/21.jpg"],
+    images: ["/18.JPG", "/19.JPG", "/20.JPG", "/21.JPG"],
   },
   {
     id: "dual-language",
@@ -160,7 +160,7 @@ const blocks: Block[] = [
         (e.g., Math Club, Robotics, Origami).
       </>
     ),
-    images: ["/25.jpg", "/26.jpg", "/27.jpg"],
+    images: ["/25.JPG", "/26.JPG", "/27.JPG"],
   },
   {
     id: "counseling",
@@ -172,7 +172,7 @@ const blocks: Block[] = [
         preparation and application coaching, to help them take confident next steps after graduation.
       </>
     ),
-    images: ["/29.jpg", "/30.jpg"],
+    images: ["/29.JPG", "/30.jpg"],
     flipped: true,
   },
 ];

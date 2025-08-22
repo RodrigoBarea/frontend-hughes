@@ -9,15 +9,15 @@ const universities = [
   { name: "Massachusetts Institute of Technology", logo: "/logos/MIT.png" },
   { name: "Brown University", logo: "/logos/Brown.png" },
   { name: "Penn University", logo: "/logos/Penn.png" },
-  { name: "Princeton University", logo: "/logos/princenton.png" },
+  { name: "Princeton University", logo: "/logos/Princenton.png" },
   { name: "Juilliard School", logo: "/logos/Juillard.png" },
-  { name: "Duke University", logo: "/logos/Duke.png" },
+  { name: "Duke University", logo: "/logos/duke.png" },
   { name: "Columbia University", logo: "/logos/columbia.png" },
   { name: "University of Notre Dame", logo: "/logos/notre-dame.png" },
   { name: "Berklee College of Music", logo: "/logos/berkley.png" },
-  { name: "Amherst College", logo: "/logos/Amherest.png" },
+  { name: "Amherst College", logo: "/logos/amherest.png" },
   { name: "Vassar College", logo: "/logos/Vassar.png" },
-  { name: "College of the Holy Cross", logo: "/logos/holy-cross.png" },
+  { name: "College of the Holy Cross", logo: "/logos/Holy-cross.png" },
 ];
 
 export default function UniversityCarousel() {

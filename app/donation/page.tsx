@@ -18,7 +18,7 @@ import {
   HandHeart,
 } from "lucide-react";
 
-const BG = "/38.jpg"; // replace with your image
+const BG = "/38.JPG"; // replace with your image
 
 export default function SupportPage() {
   return (

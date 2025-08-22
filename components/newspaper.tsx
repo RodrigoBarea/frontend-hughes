@@ -168,7 +168,7 @@ function Card({
       {/* Texto */}
       <div className="mt-4">
         <div className="text-[12px] font-semibold tracking-widest uppercase text-hughes-blue">
-          Hugues News
+          Hughes Schools News
         </div>
 
         <a href={href}>

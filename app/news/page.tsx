@@ -231,7 +231,7 @@ function AllNewsInner() {
         <div className="mb-6 flex flex-col gap-3 md:gap-4 md:mb-8">
           <div className="flex items-center justify-center gap-3 text-center">
             <span aria-hidden className="inline-block h-4 w-4 rounded-full" style={{ background: "var(--hs-yellow)" }} />
-            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-hughes-blue">Hughes Newspaper</h1>
+            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-hughes-blue">Hughes Schools Newspaper</h1>
           </div>
 
           <p className="text-center text-sm md:text-base text-hughes-blue/80">Updates and highlights from our community.</p>

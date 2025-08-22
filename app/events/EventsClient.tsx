@@ -2,12 +2,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import Image from "next/image";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
-/** ───────────── Tipos v4/v5 ───────────── */
+/* ───────── Tipos ───────── */
+export const TYPES = ["All", "Academic", "Artistic", "Extracurricular"] as const;
+export type EventType = (typeof TYPES)[number];
 
 type Media = {
   id?: number | string;
@@ -19,12 +22,7 @@ type Media = {
   };
 };
 
-type KnownFieldKey =
-  | "title"
-  | "type"
-  | "gallery"
-  | "featured_image"
-  | "slug";
+type KnownFieldKey = "title" | "type" | "gallery" | "featured_image" | "slug";
 
 type BlogV5 = {
   id: number | string;
@@ -41,42 +39,58 @@ type BlogV4 = {
     title?: string;
     type?: string;
     slug?: string;
-    gallery?: { data?: Media[] | Media | null } | Media[] | Media | null;
-    featured_image?: { data?: Media | null } | Media | null;
+    gallery?:
+      | { data?: Media[] | Media | null }
+      | Media[]
+      | Media
+      | null;
+    featured_image?:
+      | { data?: Media | null }
+      | Media
+      | null;
   };
 };
 
 type Blog = BlogV4 | BlogV5;
 
-/** ───────────── Helpers v4/v5 ───────────── */
+/* ───────── Helpers de tipo ───────── */
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null;
+}
 
 function getAttr<T = unknown>(row: Blog, key: KnownFieldKey): T | undefined {
-  if ((row as Record<string, unknown>)[key] !== undefined) {
-    return (row as Record<string, unknown>)[key] as T;
+  if (isRecord(row) && key in row) {
+    return (row as Record<KnownFieldKey, unknown>)[key] as T; // v5
   }
-  const attrs = (row as BlogV4).attributes as Record<string, unknown> | undefined;
-  if (attrs && attrs[key] !== undefined) {
-    return attrs[key] as T;
+  const attrs = (row as { attributes?: unknown }).attributes;
+  if (isRecord(attrs) && key in attrs) {
+    return (attrs as Record<KnownFieldKey, unknown>)[key] as T; // v4
   }
   return undefined;
 }
 
 function getMediaArray(val: unknown): Media[] {
   if (Array.isArray(val)) return val as Media[];
-  if (val && typeof val === "object") {
-    const obj = val as Record<string, unknown>;
-    if (typeof obj.url === "string" || obj.url === undefined) return [obj as Media];
-    const d = obj.data as unknown;
+  if (isRecord(val)) {
+    if ("url" in val) return [val as Media]; // v5: media directo
+    const d = (val as { data?: unknown }).data;
     if (Array.isArray(d)) return d as Media[];
-    if (d && typeof d === "object") return [d as Media];
+    if (isRecord(d)) return [d as Media];
   }
   return [];
 }
 
+function abs(u?: string | null): string | null {
+  if (!u) return null;
+  if (u.startsWith("http://") || u.startsWith("https://")) return u;
+  const base = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:1337";
+  return `${base}${u}`;
+}
+
 function mediaUrl(m?: Media | null): string | null {
   if (!m) return null;
-  if (typeof m?.url === "string") return abs(m.url);
-  if (m?.attributes?.url) return abs(m.attributes.url);
+  if (typeof m.url === "string") return abs(m.url);
+  if (m.attributes?.url) return abs(m.attributes.url);
   return null;
 }
 
@@ -84,85 +98,70 @@ function mediaAlt(m?: Media | null): string | undefined {
   return m?.alternativeText ?? m?.attributes?.alternativeText ?? undefined;
 }
 
-function abs(u?: string | null) {
-  if (!u) return null;
-  if (u.startsWith("http://") || u.startsWith("https://")) return u;
-  const base = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:1337";
-  return `${base}${u}`;
-}
-
 function normalizeCover(blog: Blog): { url: string; alt: string } | null {
   const title = (getAttr<string>(blog, "title") ?? "") as string;
-  const galleryRaw = getAttr(blog, "gallery");
-  const galleryArr = getMediaArray(galleryRaw);
-  const first = galleryArr[0];
-  if (first) {
-    const u = mediaUrl(first);
-    if (u) return { url: u, alt: mediaAlt(first) ?? title };
-  }
-  const fiRaw = getAttr(blog, "featured_image");
-  const fiArr = getMediaArray(fiRaw);
-  const fi = fiArr[0] ?? null;
-  const u = mediaUrl(fi);
-  if (u) return { url: u, alt: mediaAlt(fi) ?? title };
+
+  const gRaw = getAttr(blog, "gallery");
+  const gArr = getMediaArray(gRaw);
+  const first = gArr[0];
+  const u1 = mediaUrl(first);
+  if (u1) return { url: u1, alt: mediaAlt(first) ?? title };
+
+  const fRaw = getAttr(blog, "featured_image");
+  const fArr = getMediaArray(fRaw);
+  const f = fArr[0] ?? null;
+  const u2 = mediaUrl(f);
+  if (u2) return { url: u2, alt: mediaAlt(f) ?? title };
+
   return null;
 }
 
 function recapHref(item: Blog): string {
   const slug = (getAttr<string>(item, "slug") ?? "").trim();
-  if (slug) return `/events/${encodeURIComponent(slug)}`;
-  return `/events/${encodeURIComponent(String(item.id))}`;
+  return slug ? `/events/${encodeURIComponent(slug)}` : `/events/${encodeURIComponent(String(item.id))}`;
 }
 
-/** ───────────── Constantes ───────────── */
-
+/* ───────── Constantes ───────── */
 const PAGE_SIZE = 6;
-const TYPES = ["All", "Academic", "Artistic", "Extracurricular"] as const;
-type EventType = (typeof TYPES)[number];
 
-/** ───────────── Botón Read More ───────────── */
+/* ───────── Props ───────── */
+type Props = {
+  initialType: EventType;
+  initialPage: number;
+};
 
-function ReadMore({ href }: { href: string }) {
-  return (
-    <a href={href} className="group inline-flex items-center mt-3">
-      <span className="relative text-base font-semibold text-hughes-blue">
-        Read more
-        <span
-          className="absolute left-0 -bottom-0.5 h-[2px] w-full origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100"
-          style={{ background: "var(--hs-yellow)" }}
-        />
-      </span>
-    </a>
-  );
-}
-
-/** ───────────── Página (cliente) ───────────── */
-
-export default function EventsClient() {
+/* ───────── Component ───────── */
+export default function EventsClient({ initialType, initialPage }: Props) {
   const router = useRouter();
-  const params = useSearchParams();
 
-  const typeParam = (params.get("type") || "All") as EventType;
-  const pageParam = Math.max(1, parseInt(params.get("page") || "1", 10) || 1);
+  const [typeParam, setTypeParam] = useState<EventType>(initialType);
+  const [pageParam, setPageParam] = useState<number>(initialPage);
 
   const [data, setData] = useState<Blog[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    async function load() {
+    (async () => {
       try {
         setLoading(true);
+        setError(null);
+
         const base = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:1337";
         const qs = new URLSearchParams();
         qs.set("populate[gallery]", "true");
         qs.set("populate[featured_image]", "true");
         qs.set("pagination[pageSize]", "300");
+
         const res = await fetch(`${base}/api/blogs?${qs.toString()}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = (await res.json()) as { data?: Blog[] } | Blog[];
-        const items: Blog[] = Array.isArray(json) ? json : json?.data ?? [];
+
+        const json: unknown = await res.json();
+        const items: Blog[] = Array.isArray(json)
+          ? (json as Blog[])
+          : (isRecord(json) && Array.isArray(json.data) ? (json.data as Blog[]) : []);
+
         if (!cancelled) setData(items);
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : "Unknown error";
@@ -170,8 +169,8 @@ export default function EventsClient() {
       } finally {
         if (!cancelled) setLoading(false);
       }
-    }
-    load();
+    })();
+
     return () => {
       cancelled = true;
     };
@@ -188,14 +187,17 @@ export default function EventsClient() {
   const start = (page - 1) * PAGE_SIZE;
   const pageItems = filtered.slice(start, start + PAGE_SIZE);
 
-  function setQuery(next: { page?: number; type?: EventType }) {
-    const search = new URLSearchParams(params.toString());
-    if (next.type) search.set("type", next.type);
-    if (next.page) search.set("page", String(next.page));
-    if (next.type && !next.page) search.set("page", "1");
-    // replace en vez de push para evitar stacking del historial si prefieres:
-    // router.replace(`/events?${search.toString()}`, { scroll: true });
-    router.push(`/events?${search.toString()}`, { scroll: true });
+  function pushQuery(next: { page?: number; type?: EventType }) {
+    const nextType = next.type ?? typeParam;
+    const nextPage = next.page ?? (next.type ? 1 : pageParam);
+
+    const qs = new URLSearchParams();
+    if (nextType !== "All") qs.set("type", nextType);
+    if (nextPage > 1) qs.set("page", String(nextPage));
+
+    setTypeParam(nextType);
+    setPageParam(nextPage);
+    router.push(qs.toString() ? `/events?${qs.toString()}` : "/events", { scroll: true });
   }
 
   return (
@@ -204,9 +206,7 @@ export default function EventsClient() {
         {/* Encabezado */}
         <div className="mb-8 text-center">
           <div className="mx-auto inline-flex items-center gap-2 tag-hs">Event Recaps</div>
-          <h1 className="mt-3 text-3xl md:text-4xl font-bold tracking-tight text-hughes-blue">
-            All Events
-          </h1>
+          <h1 className="mt-3 text-3xl md:text-4xl font-bold tracking-tight text-hughes-blue">All Events</h1>
           <p className="text-sm md:text-base mt-2 text-hughes-blue">
             Browse our academic, artistic, and extracurricular moments.
           </p>
@@ -220,7 +220,7 @@ export default function EventsClient() {
               <button
                 key={t}
                 className="tab-pill rounded-full px-4 py-2 border transition-colors"
-                onClick={() => setQuery({ type: t })}
+                onClick={() => pushQuery({ type: t })}
                 style={
                   active
                     ? { background: "var(--hs-yellow)", borderColor: "var(--hs-yellow)" }
@@ -233,7 +233,7 @@ export default function EventsClient() {
           })}
         </div>
 
-        {/* Grid con animación */}
+        {/* Grid */}
         <AnimatePresence mode="wait">
           {loading ? (
             <motion.div
@@ -270,7 +270,7 @@ export default function EventsClient() {
             </motion.p>
           ) : (
             <motion.div
-              key={typeParam + "-" + page}
+              key={`${typeParam}-${page}`}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
@@ -282,9 +282,10 @@ export default function EventsClient() {
                 const type = (getAttr<string>(item, "type") ?? "") as string;
                 const cover = normalizeCover(item);
                 const href = recapHref(item);
+
                 return (
                   <article key={String(item.id)}>
-                    <a href={href} className="block relative overflow-hidden rounded-3xl">
+                    <Link href={href} className="block relative overflow-hidden rounded-3xl">
                       <div className="relative aspect-[16/10] w-full rounded-3xl overflow-hidden">
                         {cover ? (
                           <Image
@@ -298,15 +299,19 @@ export default function EventsClient() {
                           <div className="h-full w-full bg-neutral-100" />
                         )}
                       </div>
-                    </a>
+                    </Link>
                     <div className="mt-4">
-                      <div className="text-[12px] font-semibold tracking-widest uppercase text-hughes-blue">
-                        {type || ""}
-                      </div>
-                      <h3 className="mt-2 text-2xl font-semibold leading-snug text-hughes-blue">
-                        {title}
-                      </h3>
-                      <ReadMore href={href} />
+                      <div className="text-[12px] font-semibold tracking-widest uppercase text-hughes-blue">{type || ""}</div>
+                      <h3 className="mt-2 text-2xl font-semibold leading-snug text-hughes-blue">{title}</h3>
+                      <Link href={href} className="group inline-flex items-center mt-3">
+                        <span className="relative text-base font-semibold text-hughes-blue">
+                          Read more
+                          <span
+                            className="absolute left-0 -bottom-0.5 h-[2px] w-full origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100"
+                            style={{ background: "var(--hs-yellow)" }}
+                          />
+                        </span>
+                      </Link>
                     </div>
                   </article>
                 );
@@ -320,19 +325,20 @@ export default function EventsClient() {
           <div className="mt-10 flex items-center justify-center gap-2">
             <button
               className="rounded-full border px-3 py-2 text-hughes-blue disabled:opacity-40"
-              onClick={() => setQuery({ page: Math.max(1, page - 1) })}
+              onClick={() => pushQuery({ page: Math.max(1, page - 1) })}
               disabled={page <= 1}
               style={{ background: "var(--hs-yellow)", borderColor: "var(--hs-yellow)" }}
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
+
             {Array.from({ length: totalPages }).map((_, i) => {
               const p = i + 1;
               const active = p === page;
               return (
                 <button
                   key={p}
-                  onClick={() => setQuery({ page: p })}
+                  onClick={() => pushQuery({ page: p })}
                   className="rounded-full px-4 py-2 text-sm tab-pill border"
                   style={
                     active
@@ -344,9 +350,10 @@ export default function EventsClient() {
                 </button>
               );
             })}
+
             <button
               className="rounded-full border px-3 py-2 text-hughes-blue disabled:opacity-40"
-              onClick={() => setQuery({ page: Math.min(totalPages, page + 1) })}
+              onClick={() => pushQuery({ page: Math.min(totalPages, page + 1) })}
               disabled={page >= totalPages}
               style={{ background: "var(--hs-yellow)", borderColor: "var(--hs-yellow)" }}
             >

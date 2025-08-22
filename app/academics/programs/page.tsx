@@ -141,7 +141,7 @@ export default function AcademicProgramsPage() {
           >
             <div className="prose prose-slate max-w-none">
               <p>
-                At Hughes School, the academic program is rigorous and consistent across all grade
+                At Hughes Schools, the academic program is rigorous and consistent across all grade
                 levels. Students attend <strong>six 45‑minute classes per day</strong>.
               </p>
               <p>

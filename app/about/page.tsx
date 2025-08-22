@@ -17,9 +17,6 @@ import {
   Trophy,
   Sparkles,
   Music,
-  ArrowRight,
-  MapPin,
-  Phone,
   GraduationCap,
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -136,7 +133,7 @@ export default function AboutPage() {
       {/* HERO */}
       <section className="relative isolate overflow-hidden">
         <div className="absolute inset-0 -z-10">
-          <Image src="/35.jpg" alt="Hughes students" fill priority className="object-cover" />
+          <Image src="/35.JPG" alt="Hughes students" fill priority className="object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/50" />
         </div>
         <div className="mx-auto max-w-7xl px-6 py-20 md:py-28 text-white">
@@ -159,7 +156,7 @@ export default function AboutPage() {
       <section className="bg-white">
         <div className="mx-auto max-w-7xl grid md:grid-cols-2 gap-10 px-6 py-14 md:py-20 items-center">
           <div className="relative h-64 md:h-96 rounded-3xl overflow-hidden shadow-sm ring-1 ring-black/5">
-            <Image src="/37.jpg" alt="Vision" fill className="object-cover" />
+            <Image src="/37.JPG" alt="Vision" fill className="object-cover" />
           </div>
           <div>
             <div className="text-[var(--hs-yellow)] font-semibold tracking-wide uppercase">Our Vision</div>
@@ -189,7 +186,7 @@ export default function AboutPage() {
             </ul>
           </div>
           <div className="relative h-64 md:h-96 rounded-3xl overflow-hidden shadow-sm ring-1 ring-black/5">
-            <Image src="/36 (2).jpg" alt="Mission" fill className="object-cover" />
+            <Image src="/36 (2).JPG" alt="Mission" fill className="object-cover" />
           </div>
         </div>
       </section>
@@ -292,7 +289,7 @@ export default function AboutPage() {
           </div>
 
           <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-3">
-            {["/38.jpg","/39.jpg","/40.jpg","/42.jpg"].map((src) => (
+            {["/38.JPG","/39.JPG","/40.JPG","/42.jpg"].map((src) => (
               <div key={src} className="relative h-28 md:h-40 rounded-xl overflow-hidden ring-1 ring-black/5">
                 <Image src={src} alt="Performing arts" fill className="object-cover" />
               </div>
