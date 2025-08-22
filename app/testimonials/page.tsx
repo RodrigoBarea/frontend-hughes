@@ -167,7 +167,7 @@ export default function AllTestimonialsPage() {
         const base = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:1337";
         const qs = new URLSearchParams();
         qs.set("populate[photo]", "true");
-        qs.set("pagination[pageSize]", "300");
+        qs.set("pagination[pageSize]", "100");
         const res = await fetch(`${base}/api/testimonials?${qs.toString()}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json: unknown = await res.json();

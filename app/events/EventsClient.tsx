@@ -152,7 +152,7 @@ export default function EventsClient({ initialType, initialPage }: Props) {
         const qs = new URLSearchParams();
         qs.set("populate[gallery]", "true");
         qs.set("populate[featured_image]", "true");
-        qs.set("pagination[pageSize]", "300");
+        qs.set("pagination[pageSize]", "100");
 
         const res = await fetch(`${base}/api/blogs?${qs.toString()}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);

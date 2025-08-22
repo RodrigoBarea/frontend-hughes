@@ -161,7 +161,7 @@ function AllNewsInner() {
         const qs = new URLSearchParams();
         qs.set("populate[gallery]", "true");
         qs.set("populate[featured_image]", "true");
-        qs.set("pagination[pageSize]", "300");
+        qs.set("pagination[pageSize]", "100");
         const res = await fetch(`${base}/api/newspapers?${qs.toString()}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
