@@ -13,7 +13,7 @@ type Tier = {
   flipped?: boolean;
 };
 
-const heroImage = "/31.jpg"; // ← replace with your image
+const heroImage = "/31.JPG"; // ← replace with your image
 
 const tiers: Tier[] = [
   {
